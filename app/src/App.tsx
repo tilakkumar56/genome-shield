@@ -89,9 +89,11 @@ export default function App() {
         const mxeAcc = await arcProg.account.mxeAccount.fetch(mxeAddr);
         const lutAddr = getLookupTableAddress(PROGRAM_ID, (mxeAcc as any).lutOffsetSlot);
         const LUT_PROGRAM = new PublicKey("AddressLookupTab1e1111111111111111111111111");
+        const compDefPDA = getCompDefAccAddress(PROGRAM_ID, compDefOffset);
         const tx2 = await prog.methods.initCastVoteCompDef().accountsPartial({
           payer: new PublicKey(wallet),
           mxeAccount: mxeAddr,
+          compDefAccount: compDefPDA,
           arciumProgram: arciumProgId,
           systemProgram: SystemProgram.programId,
           addressLookupTable: lutAddr,
