@@ -1,12 +1,11 @@
 [package]
-name = "cipher_gate"
+name = "genome_shield"
 version = "0.1.0"
-description = "Created with Arcium"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "cipher_gate"
+name = "genome_shield"
 
 [features]
 default = []

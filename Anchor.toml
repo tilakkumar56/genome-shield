@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-cipher_gate = "64DG39st7qGu8gGQtvQAkFAkgEFnzHa7GQiQRLUq1CyC"
+genome_shield = "4kUgT1BdfeMGt2UVPgb1f2iZjvRR8WiSodyYYV2vnM6m"
 
 [registry]
 url = "https://api.apr.dev"

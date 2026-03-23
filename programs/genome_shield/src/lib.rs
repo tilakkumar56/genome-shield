@@ -4,41 +4,41 @@ use arcium_client::idl::arcium::types::CallbackAccount;
 use arcium_client::idl::arcium::types::{CircuitSource, OffChainCircuitSource};
 use arcium_macros::circuit_hash;
 
-const COMP_DEF_OFFSET_CHECK_ACCESS: u32 = comp_def_offset("check_access");
+const COMP_DEF_OFFSET_COMPARE_GENOMES: u32 = comp_def_offset("compare_genomes");
 
-declare_id!("64DG39st7qGu8gGQtvQAkFAkgEFnzHa7GQiQRLUq1CyC");
+declare_id!("4kUgT1BdfeMGt2UVPgb1f2iZjvRR8WiSodyYYV2vnM6m");
 
 #[arcium_program]
-pub mod cipher_gate {
+pub mod genome_shield {
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let state = &mut ctx.accounts.program_state;
         state.authority = ctx.accounts.authority.key();
-        state.total_checks = 0;
+        state.total_comparisons = 0;
         Ok(())
     }
 
-    pub fn init_check_access_comp_def(ctx: Context<InitCheckAccessCompDef>) -> Result<()> {
+    pub fn init_compare_genomes_comp_def(ctx: Context<InitCompareGenomesCompDef>) -> Result<()> {
         init_comp_def(
             ctx.accounts,
             Some(CircuitSource::OffChain(OffChainCircuitSource {
-                source: "https://raw.githubusercontent.com/tilakkumar56/cipher-gate/main/build/check_access.arcis".to_string(),
-                hash: circuit_hash!("check_access"),
+                source: "https://raw.githubusercontent.com/tilakkumar56/genome-shield/main/build/compare_genomes.arcis".to_string(),
+                hash: circuit_hash!("compare_genomes"),
             })),
             None,
         )?;
         Ok(())
     }
 
-    pub fn check_access(
-        ctx: Context<CheckAccess>,
+    pub fn compare_genomes(
+        ctx: Context<CompareGenomes>,
         computation_offset: u64,
-        ct_requester_id: [u8; 32],
-        ct_resource_id: [u8; 32],
-        ct_allowed_user: [u8; 32],
-        ct_expiry_time: [u8; 32],
-        ct_current_time: [u8; 32],
+        ct_marker1_a: [u8; 32],
+        ct_marker2_a: [u8; 32],
+        ct_marker1_b: [u8; 32],
+        ct_marker2_b: [u8; 32],
+        ct_count: [u8; 32],
         pub_key: [u8; 32],
         nonce: u128,
     ) -> Result<()> {
@@ -46,21 +46,21 @@ pub mod cipher_gate {
         let args = ArgBuilder::new()
             .x25519_pubkey(pub_key)
             .plaintext_u128(nonce)
-            .encrypted_u128(ct_requester_id)
-            .encrypted_u128(ct_resource_id)
-            .encrypted_u128(ct_allowed_user)
-            .encrypted_u128(ct_expiry_time)
-            .encrypted_u128(ct_current_time)
+            .encrypted_u128(ct_marker1_a)
+            .encrypted_u128(ct_marker2_a)
+            .encrypted_u128(ct_marker1_b)
+            .encrypted_u128(ct_marker2_b)
+            .encrypted_u8(ct_count)
             .build();
-        let access_log_key = ctx.accounts.access_log.key();
+        let comp_log_key = ctx.accounts.comp_log.key();
         queue_computation(
             ctx.accounts,
             computation_offset,
             args,
-            vec![CheckAccessCallback::callback_ix(
+            vec![CompareGenomesCallback::callback_ix(
                 computation_offset,
                 &ctx.accounts.mxe_account,
-                &[CallbackAccount { pubkey: access_log_key, is_writable: true }],
+                &[CallbackAccount { pubkey: comp_log_key, is_writable: true }],
             )?],
             1,
             0,
@@ -68,21 +68,21 @@ pub mod cipher_gate {
         Ok(())
     }
 
-    #[arcium_callback(encrypted_ix = "check_access")]
-    pub fn check_access_callback(
-        ctx: Context<CheckAccessCallback>,
-        output: SignedComputationOutputs<CheckAccessOutput>,
+    #[arcium_callback(encrypted_ix = "compare_genomes")]
+    pub fn compare_genomes_callback(
+        ctx: Context<CompareGenomesCallback>,
+        output: SignedComputationOutputs<CompareGenomesOutput>,
     ) -> Result<()> {
         let _o = match output.verify_output(
             &ctx.accounts.cluster_account,
             &ctx.accounts.computation_account,
         ) {
-            Ok(CheckAccessOutput { field_0 }) => field_0,
+            Ok(CompareGenomesOutput { field_0 }) => field_0,
             Err(_) => return Err(ErrorCode::AbortedComputation.into()),
         };
-        let log = &mut ctx.accounts.access_log;
+        let log = &mut ctx.accounts.comp_log;
         log.completed = true;
-        emit!(AccessEvent { log_id: log.log_id });
+        emit!(CompareEvent { log_id: log.log_id });
         Ok(())
     }
 }
@@ -96,9 +96,9 @@ pub struct Initialize<'info> {
     pub system_program: Program<'info, System>,
 }
 
-#[init_computation_definition_accounts("check_access", payer)]
+#[init_computation_definition_accounts("compare_genomes", payer)]
 #[derive(Accounts)]
-pub struct InitCheckAccessCompDef<'info> {
+pub struct InitCompareGenomesCompDef<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(mut, address = derive_mxe_pda!())]
@@ -116,10 +116,10 @@ pub struct InitCheckAccessCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
-#[queue_computation_accounts("check_access", payer)]
+#[queue_computation_accounts("compare_genomes", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64)]
-pub struct CheckAccess<'info> {
+pub struct CompareGenomes<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(init_if_needed, space = 9, payer = payer, seeds = [&SIGN_PDA_SEED], bump, address = derive_sign_pda!())]
@@ -135,7 +135,7 @@ pub struct CheckAccess<'info> {
     #[account(mut, address = derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: computation_account
     pub computation_account: UncheckedAccount<'info>,
-    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_CHECK_ACCESS))]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_COMPARE_GENOMES))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
     #[account(mut, address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     pub cluster_account: Account<'info, Cluster>,
@@ -143,17 +143,17 @@ pub struct CheckAccess<'info> {
     pub pool_account: Account<'info, FeePool>,
     #[account(mut, address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
     pub clock_account: Account<'info, ClockAccount>,
-    #[account(init, payer = payer, space = 8 + AccessLog::INIT_SPACE, seeds = [b"access_log", computation_offset.to_le_bytes().as_ref()], bump)]
-    pub access_log: Account<'info, AccessLog>,
+    #[account(init, payer = payer, space = 8 + CompLog::INIT_SPACE, seeds = [b"comp_log", computation_offset.to_le_bytes().as_ref()], bump)]
+    pub comp_log: Account<'info, CompLog>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
 }
 
-#[callback_accounts("check_access")]
+#[callback_accounts("compare_genomes")]
 #[derive(Accounts)]
-pub struct CheckAccessCallback<'info> {
+pub struct CompareGenomesCallback<'info> {
     pub arcium_program: Program<'info, Arcium>,
-    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_CHECK_ACCESS))]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_COMPARE_GENOMES))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
     #[account(address = derive_mxe_pda!())]
     pub mxe_account: Account<'info, MXEAccount>,
@@ -165,26 +165,26 @@ pub struct CheckAccessCallback<'info> {
     /// CHECK: instructions_sysvar
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub access_log: Account<'info, AccessLog>,
+    pub comp_log: Account<'info, CompLog>,
 }
 
 #[account]
 #[derive(InitSpace)]
 pub struct ProgramState {
     pub authority: Pubkey,
-    pub total_checks: u64,
+    pub total_comparisons: u64,
 }
 
 #[account]
 #[derive(InitSpace)]
-pub struct AccessLog {
+pub struct CompLog {
     pub requester: Pubkey,
     pub log_id: u64,
     pub completed: bool,
 }
 
 #[event]
-pub struct AccessEvent { pub log_id: u64 }
+pub struct CompareEvent { pub log_id: u64 }
 
 #[error_code]
 pub enum ErrorCode {
