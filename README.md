@@ -1,25 +1,15 @@
-# CipherGate - Decentralized Access Control on Solana
+# GenomeShield - Private Genomic Matching on Solana
 
-Encrypted key management and access policies enforced via Arcium MPC. Real end-to-end MPC computation.
+Compare genetic markers without exposing raw sequences. Powered by Arcium MPC. Real end-to-end computation.
 
-Live Demo: https://cipher-gate.vercel.app
-Program ID: 64DG39st7qGu8gGQtvQAkFAkgEFnzHa7GQiQRLUq1CyC (Solana Devnet)
-Explorer: https://explorer.solana.com/address/64DG39st7qGu8gGQtvQAkFAkgEFnzHa7GQiQRLUq1CyC?cluster=devnet
+Live Demo: https://genome-shield.vercel.app
+Program ID: 4kUgT1BdfeMGt2UVPgb1f2iZjvRR8WiSodyYYV2vnM6m (Solana Devnet)
 
-## Real End-to-End MPC Flow
+## Real MPC Flow
 
-- getMXEPublicKey: Fetches MXE x25519 public key from Solana
-- x25519.getSharedSecret: Derives shared secret with MPC cluster
-- RescueCipher.encrypt: Encrypts requester ID, resource ID, allowed user, expiry, current time
-- queue_computation: Submits encrypted data to Arcium MPC via Solana program
-- awaitComputationFinalization: Waits for ARX nodes to process and callback
-
-## Privacy Guarantees
-
-- Policy secrecy: Access rules never visible to any party
-- MPC enforcement: ARX nodes evaluate on secret shares only
-- Conditional key release: Key fragments only when all conditions pass
-- On-chain verification: BLS signature verified in callback
+- RescueCipher.encrypt: Encrypts SNP markers via x25519 ECDH
+- queue_computation: Submits to Arcium MPC via Solana program
+- awaitComputationFinalization: Waits for ARX nodes callback
 
 ## Tech Stack
 
