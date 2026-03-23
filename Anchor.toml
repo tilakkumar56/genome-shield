@@ -12,7 +12,7 @@ shadow_vote = "H6NrSVGXBpp5jdrEAaLHuWLsmPUhMt9yK2uujQotNmKU"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

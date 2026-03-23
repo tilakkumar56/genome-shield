@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 use arcium_anchor::prelude::*;
 use arcium_client::idl::arcium::types::CallbackAccount;
+use arcium_client::idl::arcium::types::{CircuitSource, OffChainCircuitSource};
+use arcium_macros::circuit_hash;
 
 const COMP_DEF_OFFSET_CAST_VOTE: u32 = comp_def_offset("cast_vote");
 
@@ -46,7 +48,14 @@ pub mod shadow_vote {
     }
 
     pub fn init_cast_vote_comp_def(ctx: Context<InitCastVoteCompDef>) -> Result<()> {
-        init_comp_def(ctx.accounts, None, None)?;
+        init_comp_def(
+            ctx.accounts,
+            Some(CircuitSource::OffChain(OffChainCircuitSource {
+                source: "https://raw.githubusercontent.com/tilakkumar56/shadow-vote/main/build/cast_vote.arcis".to_string(),
+                hash: circuit_hash!("cast_vote"),
+            })),
+            None,
+        )?;
         Ok(())
     }
 
