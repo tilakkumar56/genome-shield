@@ -85,7 +85,7 @@ export default function App() {
         const mxeAddr = getMXEAccAddress(PROGRAM_ID);
         const arciumProgId = getArciumProgramId();
         const { getArciumProgram, getLookupTableAddress } = await import("@arcium-hq/client");
-        const arcProg = getArciumProgram(provider!);
+        const arcProg = getArciumProgram(getProvider()!);
         const mxeAcc = await arcProg.account.mxeAccount.fetch(mxeAddr);
         const lutAddr = getLookupTableAddress(PROGRAM_ID, (mxeAcc as any).lutOffsetSlot);
         const LUT_PROGRAM = new PublicKey("AddressLookupTab1e1111111111111111111111111");
