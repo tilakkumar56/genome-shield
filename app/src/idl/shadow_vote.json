@@ -8,69 +8,6 @@
   },
   "instructions": [
     {
-      "name": "cast_and_tally_callback",
-      "discriminator": [
-        201,
-        205,
-        135,
-        60,
-        42,
-        59,
-        253,
-        190
-      ],
-      "accounts": [
-        {
-          "name": "arcium_program",
-          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
-        },
-        {
-          "name": "comp_def_account"
-        },
-        {
-          "name": "mxe_account"
-        },
-        {
-          "name": "computation_account"
-        },
-        {
-          "name": "cluster_account"
-        },
-        {
-          "name": "instructions_sysvar",
-          "address": "Sysvar1nstructions1111111111111111111111111"
-        },
-        {
-          "name": "vote_record",
-          "writable": true
-        },
-        {
-          "name": "proposal",
-          "writable": true
-        }
-      ],
-      "args": [
-        {
-          "name": "output",
-          "type": {
-            "defined": {
-              "name": "SignedComputationOutputs",
-              "generics": [
-                {
-                  "kind": "type",
-                  "type": {
-                    "defined": {
-                      "name": "CastAndTallyOutput"
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
       "name": "cast_vote",
       "discriminator": [
         20,
@@ -181,10 +118,6 @@
           }
         },
         {
-          "name": "proposal",
-          "writable": true
-        },
-        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         },
@@ -217,7 +150,7 @@
           }
         },
         {
-          "name": "pub_key_ballot",
+          "name": "ct_num_options",
           "type": {
             "array": [
               "u8",
@@ -226,44 +159,76 @@
           }
         },
         {
-          "name": "nonce_ballot",
+          "name": "pub_key",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "nonce",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "cast_vote_callback",
+      "discriminator": [
+        7,
+        172,
+        224,
+        198,
+        131,
+        248,
+        119,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "arcium_program",
+          "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         },
         {
-          "name": "ct_counts",
+          "name": "comp_def_account"
+        },
+        {
+          "name": "mxe_account"
+        },
+        {
+          "name": "computation_account"
+        },
+        {
+          "name": "cluster_account"
+        },
+        {
+          "name": "instructions_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "vote_record",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "output",
           "type": {
-            "array": [
-              {
-                "array": [
-                  "u8",
-                  32
-                ]
-              },
-              8
-            ]
+            "defined": {
+              "name": "SignedComputationOutputs",
+              "generics": [
+                {
+                  "kind": "type",
+                  "type": {
+                    "defined": {
+                      "name": "CastVoteOutput"
+                    }
+                  }
+                }
+              ]
+            }
           }
-        },
-        {
-          "name": "ct_total",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "pub_key_tally",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "nonce_tally",
-          "type": "u128"
         }
       ]
     },
@@ -287,7 +252,33 @@
         },
         {
           "name": "proposal",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  112,
+                  111,
+                  115,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "account",
+                "path": "program_state.total_proposals",
+                "account": "ProgramState"
+              }
+            ]
+          }
         },
         {
           "name": "program_state",
@@ -346,51 +337,16 @@
       ]
     },
     {
-      "name": "finalize_proposal",
+      "name": "init_cast_vote_comp_def",
       "discriminator": [
-        23,
-        68,
-        51,
-        167,
-        109,
-        173,
-        187,
-        164
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "proposal",
-          "writable": true
-        }
-      ],
-      "args": [
-        {
-          "name": "results",
-          "type": {
-            "array": [
-              "u64",
-              8
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "init_cast_and_tally_comp_def",
-      "discriminator": [
-        29,
-        51,
-        39,
-        210,
-        196,
-        152,
-        209,
-        41
+        87,
+        128,
+        125,
+        200,
+        216,
+        186,
+        101,
+        51
       ],
       "accounts": [
         {
@@ -598,29 +554,16 @@
   ],
   "events": [
     {
-      "name": "ProposalFinalizedEvent",
+      "name": "VoteEvent",
       "discriminator": [
-        228,
-        151,
-        231,
-        28,
-        58,
-        215,
-        17,
-        130
-      ]
-    },
-    {
-      "name": "VoteCastEvent",
-      "discriminator": [
-        241,
-        151,
-        159,
-        134,
-        250,
-        234,
+        195,
         71,
-        234
+        250,
+        105,
+        120,
+        119,
+        234,
+        134
       ]
     }
   ],
@@ -628,7 +571,7 @@
     {
       "code": 6000,
       "name": "AbortedComputation",
-      "msg": "The computation was aborted"
+      "msg": "Computation aborted"
     },
     {
       "code": 6001,
@@ -688,7 +631,7 @@
       }
     },
     {
-      "name": "CastAndTallyOutput",
+      "name": "CastVoteOutput",
       "docs": [
         "The output of the callback instruction. Provided as a struct with ordered fields",
         "as anchor does not support tuples and tuple structs yet."
@@ -704,7 +647,7 @@
                 "generics": [
                   {
                     "kind": "const",
-                    "value": "9"
+                    "value": "3"
                   }
                 ]
               }
@@ -1378,7 +1321,10 @@
           {
             "name": "option_labels",
             "type": {
-              "vec": "string"
+              "array": [
+                "string",
+                8
+              ]
             }
           },
           {
@@ -1386,37 +1332,8 @@
             "type": "i64"
           },
           {
-            "name": "total_votes",
-            "type": "u64"
-          },
-          {
             "name": "finalized",
             "type": "bool"
-          },
-          {
-            "name": "results",
-            "type": {
-              "array": [
-                "u64",
-                8
-              ]
-            }
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ProposalFinalizedEvent",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "proposal_id",
-            "type": "u64"
           },
           {
             "name": "results",
@@ -1612,17 +1529,13 @@
       }
     },
     {
-      "name": "VoteCastEvent",
+      "name": "VoteEvent",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "proposal_id",
-            "type": "u64"
-          },
-          {
-            "name": "total_votes",
-            "type": "u64"
+            "name": "voter",
+            "type": "pubkey"
           }
         ]
       }
@@ -1641,12 +1554,8 @@
             "type": "u64"
           },
           {
-            "name": "counted",
+            "name": "voted",
             "type": "bool"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
           }
         ]
       }
