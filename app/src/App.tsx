@@ -11,7 +11,7 @@ import {
 } from "@arcium-hq/client";
 window.Buffer = Buffer;
 
-const PROGRAM_ID = new PublicKey("H6NrSVGXBpp5jdrEAaLHuWLsmPUhMt9yK2uujQotNmKU");
+const PROGRAM_ID = new PublicKey("A6aMv9XdGov532ahzgz8MgUMyPeW1cXCp7Ln8w5VmFvw");
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 const CLUSTER_OFFSET = 456;
 import IDL from "./idl/shadow_vote.json";

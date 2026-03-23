@@ -6,7 +6,7 @@ use arcium_macros::circuit_hash;
 
 const COMP_DEF_OFFSET_CAST_VOTE: u32 = comp_def_offset("cast_vote");
 
-declare_id!("H6NrSVGXBpp5jdrEAaLHuWLsmPUhMt9yK2uujQotNmKU");
+declare_id!("A6aMv9XdGov532ahzgz8MgUMyPeW1cXCp7Ln8w5VmFvw");
 
 #[arcium_program]
 pub mod shadow_vote {

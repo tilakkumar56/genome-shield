@@ -1,216 +1,94 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import { ShadowVote } from "../target/types/shadow_vote";
-import { randomBytes } from "crypto";
 import {
-  awaitComputationFinalization,
-  getArciumEnv,
-  getCompDefAccOffset,
-  getArciumAccountBaseSeed,
-  getArciumProgramId,
-  getArciumProgram,
-  uploadCircuit,
-  RescueCipher,
-  deserializeLE,
-  getMXEPublicKey,
-  getMXEAccAddress,
-  getMempoolAccAddress,
-  getCompDefAccAddress,
-  getExecutingPoolAccAddress,
-  getComputationAccAddress,
-  getClusterAccAddress,
-  getLookupTableAddress,
-  x25519,
+  x25519, RescueCipher, getMXEPublicKey, getMXEAccAddress,
+  getCompDefAccAddress, getClusterAccAddress, getComputationAccAddress,
+  getMempoolAccAddress, getExecutingPoolAccAddress, getFeePoolAccAddress,
+  getClockAccAddress, getCompDefAccOffset, getArciumEnv,
+  awaitComputationFinalization, deserializeLE, uploadCircuit, getCircuitState,
 } from "@arcium-hq/client";
+import { randomBytes } from "crypto";
 import * as fs from "fs";
 import * as os from "os";
-import { expect } from "chai";
 
-describe("ShadowVote", () => {
-  // Configure the client to use the local cluster.
+function readKpJson(path: string): anchor.web3.Keypair {
+  const raw = JSON.parse(fs.readFileSync(path, "utf-8"));
+  return anchor.web3.Keypair.fromSecretKey(new Uint8Array(raw));
+}
+
+describe("shadow_vote", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
-  const program = anchor.workspace
-    .ShadowVote as Program<ShadowVote>;
+  const program = anchor.workspace.ShadowVote;
   const provider = anchor.getProvider();
-  const arciumProgram = getArciumProgram(provider as anchor.AnchorProvider);
-
-  type Event = anchor.IdlEvents<(typeof program)["idl"]>;
-  const awaitEvent = async <E extends keyof Event>(
-    eventName: E,
-  ): Promise<Event[E]> => {
-    let listenerId: number;
-    const event = await new Promise<Event[E]>((res) => {
-      listenerId = program.addEventListener(eventName, (event) => {
-        res(event);
-      });
-    });
-    await program.removeEventListener(listenerId);
-
-    return event;
-  };
-
   const arciumEnv = getArciumEnv();
-  const clusterAccount = getClusterAccAddress(arciumEnv.arciumClusterOffset);
 
-  it("Is initialized!", async () => {
+  it("Init comp def and cast vote", async () => {
     const owner = readKpJson(`${os.homedir()}/.config/solana/id.json`);
 
-    console.log("Initializing add together computation definition");
-    const initATSig = await initAddTogetherCompDef(program, owner);
-    console.log(
-      "Add together computation definition initialized with signature",
-      initATSig,
-    );
+    // Check circuit state
+    const state = await getCircuitState(provider as anchor.AnchorProvider, program.programId, "cast_vote");
+    console.log("Circuit state:", state);
 
-    const mxePublicKey = await getMXEPublicKeyWithRetry(
-      provider as anchor.AnchorProvider,
-      program.programId,
-    );
+    if (state !== "Finalized") {
+      // Upload circuit
+      const circuit = fs.readFileSync("./build/cast_vote.arcis");
+      console.log("Uploading circuit:", circuit.length, "bytes");
+      await uploadCircuit(
+        provider as anchor.AnchorProvider,
+        "cast_vote",
+        program.programId,
+        circuit,
+        { skipPreflight: true, commitment: "confirmed" }
+      );
+      console.log("Circuit uploaded");
+    }
 
-    console.log("MXE x25519 pubkey is", mxePublicKey);
+    // Now test the actual MPC flow
+    const mxePubKey = await getMXEPublicKey(provider as anchor.AnchorProvider, program.programId);
+    console.log("MXE pubkey:", mxePubKey);
 
-    const privateKey = x25519.utils.randomSecretKey();
-    const publicKey = x25519.getPublicKey(privateKey);
-
-    const sharedSecret = x25519.getSharedSecret(privateKey, mxePublicKey);
+    const privKey = x25519.utils.randomPrivateKey();
+    const pubKey = x25519.getPublicKey(privKey);
+    const sharedSecret = x25519.getSharedSecret(privKey, mxePubKey);
     const cipher = new RescueCipher(sharedSecret);
-
-    const val1 = BigInt(1);
-    const val2 = BigInt(2);
-    const plaintext = [val1, val2];
-
     const nonce = randomBytes(16);
-    const ciphertext = cipher.encrypt(plaintext, nonce);
 
-    const sumEventPromise = awaitEvent("sumEvent");
+    const ctOptionIdx = cipher.encrypt([BigInt(1)], nonce);
+    const ctWeight = cipher.encrypt([BigInt(1)], nonce);
+    const ctNumOptions = cipher.encrypt([BigInt(4)], nonce);
+
     const computationOffset = new anchor.BN(randomBytes(8), "hex");
+    const compDefOffset = Buffer.from(getCompDefAccOffset("cast_vote")).readUInt32LE();
 
-    const queueSig = await program.methods
-      .addTogether(
-        computationOffset,
-        Array.from(ciphertext[0]),
-        Array.from(ciphertext[1]),
-        Array.from(publicKey),
-        new anchor.BN(deserializeLE(nonce).toString()),
-      )
-      .accountsPartial({
-        computationAccount: getComputationAccAddress(
-          arciumEnv.arciumClusterOffset,
-          computationOffset,
-        ),
-        clusterAccount,
-        mxeAccount: getMXEAccAddress(program.programId),
-        mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
-        executingPool: getExecutingPoolAccAddress(
-          arciumEnv.arciumClusterOffset,
-        ),
-        compDefAccount: getCompDefAccAddress(
-          program.programId,
-          Buffer.from(getCompDefAccOffset("add_together")).readUInt32LE(),
-        ),
-      })
-      .rpc({ skipPreflight: true, commitment: "confirmed" });
-    console.log("Queue sig is ", queueSig);
+    console.log("Queuing vote computation...");
+    const queueTx = await program.methods.castVote(
+      computationOffset,
+      Array.from(ctOptionIdx[0]),
+      Array.from(ctWeight[0]),
+      Array.from(ctNumOptions[0]),
+      Array.from(pubKey),
+      new anchor.BN(deserializeLE(nonce).toString()),
+    ).accountsPartial({
+      computationAccount: getComputationAccAddress(arciumEnv.arciumClusterOffset, computationOffset),
+      clusterAccount: getClusterAccAddress(arciumEnv.arciumClusterOffset),
+      mxeAccount: getMXEAccAddress(program.programId),
+      mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
+      executingPool: getExecutingPoolAccAddress(arciumEnv.arciumClusterOffset),
+      compDefAccount: getCompDefAccAddress(program.programId, compDefOffset),
+      poolAccount: getFeePoolAccAddress(),
+      clockAccount: getClockAccAddress(),
+    }).rpc({ skipPreflight: true, commitment: "confirmed" });
 
-    const finalizeSig = await awaitComputationFinalization(
+    console.log("Queue tx:", queueTx);
+
+    const finalizeTx = await awaitComputationFinalization(
       provider as anchor.AnchorProvider,
       computationOffset,
       program.programId,
-      "confirmed",
+      "confirmed"
     );
-    console.log("Finalize sig is ", finalizeSig);
-
-    const sumEvent = await sumEventPromise;
-    const decrypted = cipher.decrypt([sumEvent.sum], sumEvent.nonce)[0];
-    expect(decrypted).to.equal(val1 + val2);
+    console.log("Finalize tx:", finalizeTx);
+    console.log("MPC vote computation completed successfully!");
   });
-
-  async function initAddTogetherCompDef(
-    program: Program<ShadowVote>,
-    owner: anchor.web3.Keypair,
-  ): Promise<string> {
-    const baseSeedCompDefAcc = getArciumAccountBaseSeed(
-      "ComputationDefinitionAccount",
-    );
-    const offset = getCompDefAccOffset("add_together");
-
-    const compDefPDA = PublicKey.findProgramAddressSync(
-      [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
-      getArciumProgramId(),
-    )[0];
-
-    console.log("Comp def pda is ", compDefPDA);
-
-    const mxeAccount = getMXEAccAddress(program.programId);
-    const mxeAcc = await arciumProgram.account.mxeAccount.fetch(mxeAccount);
-    const lutAddress = getLookupTableAddress(program.programId, mxeAcc.lutOffsetSlot);
-
-    const sig = await program.methods
-      .initAddTogetherCompDef()
-      .accounts({
-        compDefAccount: compDefPDA,
-        payer: owner.publicKey,
-        mxeAccount,
-        addressLookupTable: lutAddress,
-      })
-      .signers([owner])
-      .rpc({
-        commitment: "confirmed",
-      });
-    console.log("Init add together computation definition transaction", sig);
-
-    const rawCircuit = fs.readFileSync("build/add_together.arcis");
-    await uploadCircuit(
-      provider as anchor.AnchorProvider,
-      "add_together",
-      program.programId,
-      rawCircuit,
-      true,
-      500,
-      {
-        skipPreflight: true,
-        preflightCommitment: "confirmed",
-        commitment: "confirmed",
-      },
-    );
-
-    return sig;
-  }
 });
-
-async function getMXEPublicKeyWithRetry(
-  provider: anchor.AnchorProvider,
-  programId: PublicKey,
-  maxRetries: number = 20,
-  retryDelayMs: number = 500,
-): Promise<Uint8Array> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const mxePublicKey = await getMXEPublicKey(provider, programId);
-      if (mxePublicKey) {
-        return mxePublicKey;
-      }
-    } catch (error) {
-      console.log(`Attempt ${attempt} failed to fetch MXE public key:`, error);
-    }
-
-    if (attempt < maxRetries) {
-      console.log(
-        `Retrying in ${retryDelayMs}ms... (attempt ${attempt}/${maxRetries})`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-    }
-  }
-
-  throw new Error(
-    `Failed to fetch MXE public key after ${maxRetries} attempts`,
-  );
-}
-
-function readKpJson(path: string): anchor.web3.Keypair {
-  const file = fs.readFileSync(path);
-  return anchor.web3.Keypair.fromSecretKey(
-    new Uint8Array(JSON.parse(file.toString())),
-  );
-}

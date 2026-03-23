@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-shadow_vote = "H6NrSVGXBpp5jdrEAaLHuWLsmPUhMt9yK2uujQotNmKU"
+shadow_vote = "A6aMv9XdGov532ahzgz8MgUMyPeW1cXCp7Ln8w5VmFvw"
 
 [registry]
 url = "https://api.apr.dev"
